@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: bank-app
+
+Globals:
+  Function:
+    Timeout: 5
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - frauddetector:GetEventPrediction
+              Resource: "*"
+      Environment:
+        Variables:
+          FORCE_DEPLOY: "true"  # Trigger redeployment by changing this value
+      Events:
+        PredictApi:
+          Type: Api
+          Properties:
+            Path: /predict
+            Method: post
+
+Outputs:
+  PredictApi:
+    Description: API Gateway endpoint URL for /predict
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/predict"
