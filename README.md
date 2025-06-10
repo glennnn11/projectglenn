@@ -57,7 +57,8 @@ sam build
 sam deploy --guided
 After deployment, the CLI will output your API Gateway endpoint URL.
 
-🧪 Sample API Request
+
+##🧪 Sample API Request
 bash
 Copy
 Edit
@@ -68,13 +69,14 @@ curl -X POST https://<api-id>.execute-api.<region>.amazonaws.com/Prod/predict \
     "ip_address": "1.2.3.4",
     "email_address": "test@example.com"
   }'
-🔍 How Each AWS Component Works
-📡 Amazon API Gateway
+
+##🔍 How Each AWS Component Works
+#📡 Amazon API Gateway
 Exposes RESTful endpoints to the frontend
 
 Routes HTTP POST requests to the backend Lambda function
 
-⚙️ AWS Lambda
+#⚙️ AWS Lambda
 Processes the incoming user data
 
 Calls Amazon Fraud Detector for real-time risk evaluation
@@ -83,22 +85,22 @@ Writes fraud check results to DynamoDB
 
 Publishes an SNS message for high-risk detections
 
-📬 Amazon SNS
+#📬 Amazon SNS
 Sends email alerts when a high-risk customer is detected
 
 Can be configured to support SMS or chat alerts
 
-💾 Amazon DynamoDB
+#💾 Amazon DynamoDB
 Stores a log of all fraud evaluations
 
 Enables future querying and analysis
 
-🧠 Amazon Fraud Detector
+#🧠 Amazon Fraud Detector
 Predicts fraud risk based on user IP and email
 
 Returns outcomes like low_risk_customer, medium_risk_customer, or high_risk_customer
 
-🧰 Tech Stack Overview
+##🧰 Tech Stack Overview
 Component	Technology
 Frontend	HTML/CSS/JavaScript (handled by team)
 API Layer	Amazon API Gateway
@@ -109,7 +111,7 @@ Notifications	Amazon SNS
 Chatbot	Amazon Lex
 Deployment Tool	AWS SAM
 
-🔭 Future Enhancements
+##🔭 Future Enhancements
 Add CloudWatch Dashboards to monitor fraud trends and API activity
 
 Integrate user authentication and JWT for secured API access
@@ -122,5 +124,3 @@ Show fraud score/risk level in frontend UI
 
 Add S3-based logging for long-term storage and compliance
 
-🧹 Cleanup Instructions
-To delete all resources created by this stack:
