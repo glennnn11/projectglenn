@@ -1,40 +1,129 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: bank-app
-
-Globals:
-  Function:
-    Timeout: 5
-    LoggingConfig:
-      LogFormat: JSON
+Description: Fraud Detection SAM App
 
 Resources:
-  HelloWorldFunction:
+  # SNS Topic
+  HighRiskSnsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: HighRiskAlertsTopic-v3
+
+  # SNS Topic Policy allowing only this Lambda role to publish
+  HighRiskSnsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref HighRiskSnsTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSpecificLambdaPublish
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt FraudCheckerFunctionRole.Arn
+            Action: "sns:Publish"
+            Resource: !Ref HighRiskSnsTopic
+
+  # Email subscription to SNS Topic
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref HighRiskSnsTopic
+      Protocol: email
+      Endpoint: ykchristan82@gmail.com
+
+  # Lambda Execution Role
+  FraudCheckerFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: FraudCheckerInlinePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - frauddetector:GetEventPrediction
+                  - sns:Publish
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  # API Gateway for Fraud Checker
+  FraudApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        AllowOrigin: "'*'"
+
+  # Fraud Checker Lambda Function
+  FraudCheckerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: hello-world/
-      Handler: app.lambdaHandler
+      CodeUri: fraud-checker/
+      Handler: app.handler
       Runtime: nodejs18.x
-      Architectures:
-        - x86_64
-      Policies:
-        - Version: '2012-10-17'
-          Statement:
-            - Effect: Allow
-              Action:
-                - frauddetector:GetEventPrediction
-              Resource: "*"
+      Role: !GetAtt FraudCheckerFunctionRole.Arn
       Environment:
         Variables:
-          FORCE_DEPLOY: "true"  # Trigger redeployment by changing this value
+          FRAUD_EVENTS_TABLE: !Ref FraudEventsTable
+          HIGH_RISK_SNS_TOPIC_ARN: !Ref HighRiskSnsTopic
       Events:
         PredictApi:
           Type: Api
           Properties:
             Path: /predict
             Method: post
+            RestApiId: !Ref FraudApi
+
+  # Lambda Permission for API Gateway to invoke FraudCheckerFunction
+  FraudCheckerApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FraudCheckerFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FraudApi}/*/POST/predict"
+
+  # DynamoDB Table for Logging Events
+  FraudEventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: FraudEvents-v3
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: eventId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventId
+          KeyType: HASH
 
 Outputs:
-  PredictApi:
-    Description: API Gateway endpoint URL for /predict
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/predict"
+  PredictApiUrl:
+    Description: API Gateway URL
+    Value: !Sub "https://${FraudApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/predict"
+
+  SnsTopicArn:
+    Description: SNS Topic ARN
+    Value: !Ref HighRiskSnsTopic
+
+  SnsTopicName:
+    Description: SNS Topic Name
+    Value: !GetAtt HighRiskSnsTopic.TopicName
+
