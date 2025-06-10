@@ -57,6 +57,7 @@ sam build
 sam deploy --guided
 After deployment, the CLI will output your API Gateway endpoint URL.
 
+---
 
 ##🧪 Sample API Request
 bash
